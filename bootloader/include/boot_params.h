@@ -1,0 +1,73 @@
+#ifndef BOOT_PARAMS_H
+#define BOOT_PARAMS_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+static const int PAGE_SIZE = 4096;
+
+/**
+ * Describes a continuous region of memory in the MemoryMap. Fully compatible with EFI_MEMORY_DESCRIPTOR.
+ */
+typedef struct MemoryMapEntry {
+    /**
+     * The type of memory that's used here.
+     */
+    uint32_t type;
+    /**
+     * The physical address start of the described region.
+     */
+    uint64_t physical_start;
+    /**
+     * The virtual address start of the described region.
+     */
+    uint64_t virtual_start;
+    /**
+     * The number of 4 KiB pages that this region describes.
+     */
+    uint64_t page_count;
+    /**
+     * Some flags that further describe the region.
+     */
+    uint64_t flags;
+} MemoryMapEntry;
+
+/**
+ * Describes the memory map for the RAM. Fully compatible with the parameters of UEFI's EFI_BOOT_SERVICES.GetMemoryMap().
+ */
+typedef struct MemoryMap {
+    /**
+     * The size (in bytes) of the entries array.
+     */
+    size_t mem_map_size;
+    /**
+     * An array of memory map entries. This is the important data. The array size is entry_count.
+     */
+    MemoryMapEntry* entries;
+    /**
+     * The UEFI key for this memory map (determines if the map is valid or not).
+     */
+    size_t mem_map_key;
+    /**
+     * The size (in bytes) of a single entry.
+     */
+    size_t entry_size;
+    /**
+     * The UEFI spec version for the entry.
+     */
+    uint32_t entry_version;
+} MemoryMap;
+
+/**
+ * Represents an invalid memory map. It is returned when something failed while getting the memory map. All values are
+ * 0 and the entries array is a null pointer.
+ */
+static const MemoryMap INVALID_MEMORY_MAP = {
+    .mem_map_size = 0,
+    .entries = NULL,
+    .mem_map_key = 0,
+    .entry_size = 0,
+    .entry_version = 0
+}; 
+
+#endif //BOOT_PARAMS_H

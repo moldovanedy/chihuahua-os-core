@@ -1,0 +1,2 @@
+src = []
+subdir('string')

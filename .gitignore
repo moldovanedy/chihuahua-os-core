@@ -1,0 +1,13 @@
+.directory
+bin/
+
+**/.idea/
+**/buildDir/
+**/bin/
+
+*.img
+*.log
+
+*.a
+*.lib
+*.so
