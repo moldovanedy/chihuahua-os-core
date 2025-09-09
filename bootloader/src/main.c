@@ -1,7 +1,9 @@
-#include <c-efi.h>
+#include <efi.h>
 #include <stdbool.h>
 
-#include "boot_params.h"
+#include <boot_params.h>
+
+#include "loader/kernel_reader.h"
 #include "main.h"
 
 /**
@@ -11,31 +13,33 @@
  * false otherwise.
  * @return The memory map or an invalid value if something failed.
  */
-static MemoryMap get_memory_map(bool* isSuccessful);
+static MemoryMap getMemoryMap(bool *isSuccessful);
 
-static CEfiSystemTable *system_table = NULL;
-static CEfiSimpleTextOutputProtocol *cout = NULL;
+static EFI_SYSTEM_TABLE *systemTable = NULL;
+static EFI_SIMPLE_TEXT_OUT_PROTOCOL *cout = NULL;
 
-CEfiStatus print(CEfiChar16 *str) {
+EFI_STATUS print(CHAR16 *str) {
     if (cout == NULL) {
-        return C_EFI_DEVICE_ERROR;
+        return EFI_DEVICE_ERROR;
     }
-    
-    return cout->output_string(cout, str);
+
+    return cout->OutputString(cout, str);
 }
 
-// ReSharper disable once CppParameterNeverUsed
-CEfiStatus efi_main(CEfiHandle h, CEfiSystemTable *st) {
-    system_table = st;
-    cout = system_table->con_out;
-    
-    CEfiStatus r = print(L"Start booting ChihuahuaOS.\r\n");
-    if (C_EFI_ERROR(r)) {
-        return r;
+extern EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
+    systemTable = st;
+    cout = systemTable->ConOut;
+
+    EFI_STATUS initialPrintStatus = print(L"Start booting ChihuahuaOS.\r\n");
+    if (EFI_ERROR(initialPrintStatus)) {
+        return initialPrintStatus;
     }
 
+    KernelLoadError error;
+    readKernel(handle, st, &error);
+
     bool isSuccessful;
-    MemoryMap mem_map = get_memory_map(&isSuccessful);
+    MemoryMap memMap = getMemoryMap(&isSuccessful);
     if (isSuccessful) {
         print(L"Memory map retrieved.\r\n");
     }
@@ -43,51 +47,51 @@ CEfiStatus efi_main(CEfiHandle h, CEfiSystemTable *st) {
         print(L"Memory map failed.\r\n");
     }
 
-    CEfiUSize x;
-    r = system_table->boot_services->wait_for_event(1, &system_table->con_in->wait_for_key, &x);
-    if (C_EFI_ERROR(r)) {
-        return r;
+    UINTN x;
+    initialPrintStatus = systemTable->BootServices->WaitForEvent(1, &systemTable->ConIn->WaitForKey, &x);
+    if (EFI_ERROR(initialPrintStatus)) {
+        return initialPrintStatus;
     }
 
     return 0;
 }
 
-static MemoryMap get_memory_map(bool* isSuccessful) {
+static MemoryMap getMemoryMap(bool *isSuccessful) {
     *isSuccessful = false;
-    
-    if (system_table == NULL) {
+
+    if (systemTable == NULL) {
         return INVALID_MEMORY_MAP;
     }
 
-    CEfiPhysicalAddress mem_map_ptr = 0;
-    CEfiStatus status = system_table->boot_services->allocate_pages(
-        C_EFI_ALLOCATE_ANY_PAGES,
-        C_EFI_LOADER_DATA,
+    EFI_PHYSICAL_ADDRESS memMapPtr = 0;
+    EFI_STATUS status = systemTable->BootServices->AllocatePages(
+        AllocateAnyPages,
+        EfiLoaderData,
         1,
-        &mem_map_ptr);
-    if (C_EFI_ERROR(status) || mem_map_ptr == 0) {
+        &memMapPtr);
+    if (EFI_ERROR(status) || memMapPtr == 0) {
         return INVALID_MEMORY_MAP;
     }
 
-    CEfiUSize map_size = PAGE_SIZE;
-    CEfiUSize map_key = 0;
-    CEfiUSize descriptor_size = 0;
-    CEfiU32 descriptor_version = 0;
-    
-    status = system_table->boot_services->get_memory_map(
-        &map_size,
-        (CEfiMemoryDescriptor*)mem_map_ptr,
-        &map_key,
-        &descriptor_size,
-        &descriptor_version);
+    UINTN mapSize = PAGE_SIZE;
+    UINTN mapKey = 0;
+    UINTN descriptorSize = 0;
+    UINT32 descriptorVersion = 0;
 
-    if (!C_EFI_ERROR(status)) {
-        MemoryMap mem_map = {
-            .mem_map_size = map_size,
-            .mem_map_key = map_key,
-            .entries = (MemoryMapEntry*)mem_map_ptr,
-            .entry_size = descriptor_size,
-            .entry_version = descriptor_version,
+    status = systemTable->BootServices->GetMemoryMap(
+        &mapSize,
+        (EFI_MEMORY_DESCRIPTOR *) memMapPtr,
+        &mapKey,
+        &descriptorSize,
+        &descriptorVersion);
+
+    if (!EFI_ERROR(status)) {
+        const MemoryMap mem_map = {
+            .mem_map_size = mapSize,
+            .mem_map_key = mapKey,
+            .entries = (MemoryMapEntry *) memMapPtr,
+            .entry_size = descriptorSize,
+            .entry_version = descriptorVersion,
         };
 
         *isSuccessful = true;
@@ -95,47 +99,47 @@ static MemoryMap get_memory_map(bool* isSuccessful) {
     }
 
     //if we get an error, and it's not from insufficient memory, then we abort
-    if (status != C_EFI_BUFFER_TOO_SMALL) {
+    if (status != EFI_BUFFER_TOO_SMALL) {
         return INVALID_MEMORY_MAP;
     }
 
     //we free the one page that we allocated, so we can allocate the correct size
-    status = system_table->boot_services->free_pages(mem_map_ptr, 1);
-    if (C_EFI_ERROR(status)) {
+    status = systemTable->BootServices->FreePages(memMapPtr, 1);
+    if (EFI_ERROR(status)) {
         return INVALID_MEMORY_MAP;
     }
 
-    status = system_table->boot_services->allocate_pages(
-        C_EFI_ALLOCATE_ANY_PAGES,
-        C_EFI_LOADER_DATA,
-        (map_size + PAGE_SIZE - 1) / PAGE_SIZE,
-        &mem_map_ptr);
+    status = systemTable->BootServices->AllocatePages(
+        AllocateAnyPages,
+        EfiLoaderData,
+        (mapSize + PAGE_SIZE - 1) / PAGE_SIZE,
+        &memMapPtr);
 
-    if (C_EFI_ERROR(status)) {
+    if (EFI_ERROR(status)) {
         return INVALID_MEMORY_MAP;
     }
 
     //try again
-    status = system_table->boot_services->get_memory_map(
-        &map_size,
-        (CEfiMemoryDescriptor*)mem_map_ptr,
-        &map_key,
-        &descriptor_size,
-        &descriptor_version);
-    
+    status = systemTable->BootServices->GetMemoryMap(
+        &mapSize,
+        (EFI_MEMORY_DESCRIPTOR *) memMapPtr,
+        &mapKey,
+        &descriptorSize,
+        &descriptorVersion);
+
     //if it's still an error, abort
-    if (C_EFI_ERROR(status)) {
+    if (EFI_ERROR(status)) {
         return INVALID_MEMORY_MAP;
     }
-    
-    MemoryMap mem_map = {
-        .mem_map_size = map_size,
-        .mem_map_key = map_key,
-        .entries = (MemoryMapEntry*)mem_map_ptr,
-        .entry_size = descriptor_size,
-        .entry_version = descriptor_version,
+
+    MemoryMap memMap = {
+        .mem_map_size = mapSize,
+        .mem_map_key = mapKey,
+        .entries = (MemoryMapEntry *) memMapPtr,
+        .entry_size = descriptorSize,
+        .entry_version = descriptorVersion,
     };
 
     *isSuccessful = true;
-    return mem_map;
+    return memMap;
 }

@@ -11,3 +11,6 @@ bin/
 *.a
 *.lib
 *.so
+
+# This contains details specific to the host environment
+host_config.ini
