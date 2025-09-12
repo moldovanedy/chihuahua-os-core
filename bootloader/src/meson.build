@@ -1,5 +1,5 @@
 src = files(
-    'main.c'
+    'main.cpp'
 )
 
 subdir('loader')

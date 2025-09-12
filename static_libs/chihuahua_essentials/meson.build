@@ -1,7 +1,8 @@
-project('chihuahua_essentials', 
-        'c',
-        version : '0.1.0',
-        default_options : ['warning_level=3', 'c_std=c11'])
+project(
+    'chihuahua_essentials',
+    'c',
+    version : '0.1.0',
+    default_options : ['warning_level=3', 'c_std=c11'])
 
 include_dir = include_directories('include')
 subdir('src')

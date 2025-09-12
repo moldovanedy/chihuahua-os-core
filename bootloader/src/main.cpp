@@ -1,5 +1,4 @@
 #include <efi.h>
-#include <stdbool.h>
 
 #include <boot_params.h>
 
@@ -15,36 +14,39 @@
  */
 static MemoryMap getMemoryMap(bool *isSuccessful);
 
-static EFI_SYSTEM_TABLE *systemTable = NULL;
-static EFI_SIMPLE_TEXT_OUT_PROTOCOL *cout = NULL;
+static EFI_SYSTEM_TABLE *systemTable = nullptr;
+static EFI_SIMPLE_TEXT_OUT_PROTOCOL *cout = nullptr;
 
-EFI_STATUS print(CHAR16 *str) {
-    if (cout == NULL) {
+EFI_STATUS Log::print(CHAR16 *str) {
+    if (cout == nullptr) {
         return EFI_DEVICE_ERROR;
     }
 
     return cout->OutputString(cout, str);
 }
 
-extern EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
+extern "C" EFI_STATUS EfiMain(EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
     systemTable = st;
     cout = systemTable->ConOut;
 
-    EFI_STATUS initialPrintStatus = print(L"Start booting ChihuahuaOS.\r\n");
+    // ReSharper disable once CppStringLiteralToCharPointerConversion
+    EFI_STATUS initialPrintStatus = Log::print(L"Start booting ChihuahuaOS.\r\n");
     if (EFI_ERROR(initialPrintStatus)) {
         return initialPrintStatus;
     }
 
-    KernelLoadError error;
-    readKernel(handle, st, &error);
+    KernelReader::KernelLoadError error;
+    KernelReader::readKernel(handle, st, &error);
 
     bool isSuccessful;
     MemoryMap memMap = getMemoryMap(&isSuccessful);
     if (isSuccessful) {
-        print(L"Memory map retrieved.\r\n");
+        // ReSharper disable once CppStringLiteralToCharPointerConversion
+        Log::print(L"Memory map retrieved.\r\n");
     }
     else {
-        print(L"Memory map failed.\r\n");
+        // ReSharper disable once CppStringLiteralToCharPointerConversion
+        Log::print(L"Memory map failed.\r\n");
     }
 
     UINTN x;
@@ -59,7 +61,7 @@ extern EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
 static MemoryMap getMemoryMap(bool *isSuccessful) {
     *isSuccessful = false;
 
-    if (systemTable == NULL) {
+    if (systemTable == nullptr) {
         return INVALID_MEMORY_MAP;
     }
 
@@ -80,19 +82,18 @@ static MemoryMap getMemoryMap(bool *isSuccessful) {
 
     status = systemTable->BootServices->GetMemoryMap(
         &mapSize,
-        (EFI_MEMORY_DESCRIPTOR *) memMapPtr,
+        reinterpret_cast<EFI_MEMORY_DESCRIPTOR *>(memMapPtr),
         &mapKey,
         &descriptorSize,
         &descriptorVersion);
 
     if (!EFI_ERROR(status)) {
-        const MemoryMap mem_map = {
-            .mem_map_size = mapSize,
-            .mem_map_key = mapKey,
-            .entries = (MemoryMapEntry *) memMapPtr,
-            .entry_size = descriptorSize,
-            .entry_version = descriptorVersion,
-        };
+        MemoryMap mem_map;
+        mem_map.mem_map_size = mapSize;
+        mem_map.mem_map_key = mapKey;
+        mem_map.entries = reinterpret_cast<MemoryMapEntry *>(memMapPtr);
+        mem_map.entry_size = descriptorSize;
+        mem_map.entry_version = descriptorVersion;
 
         *isSuccessful = true;
         return mem_map;
@@ -122,7 +123,7 @@ static MemoryMap getMemoryMap(bool *isSuccessful) {
     //try again
     status = systemTable->BootServices->GetMemoryMap(
         &mapSize,
-        (EFI_MEMORY_DESCRIPTOR *) memMapPtr,
+        reinterpret_cast<EFI_MEMORY_DESCRIPTOR *>(memMapPtr),
         &mapKey,
         &descriptorSize,
         &descriptorVersion);
@@ -132,13 +133,12 @@ static MemoryMap getMemoryMap(bool *isSuccessful) {
         return INVALID_MEMORY_MAP;
     }
 
-    MemoryMap memMap = {
-        .mem_map_size = mapSize,
-        .mem_map_key = mapKey,
-        .entries = (MemoryMapEntry *) memMapPtr,
-        .entry_size = descriptorSize,
-        .entry_version = descriptorVersion,
-    };
+    MemoryMap memMap;
+    memMap.mem_map_size = mapSize;
+    memMap.mem_map_key = mapKey;
+    memMap.entries = reinterpret_cast<MemoryMapEntry *>(memMapPtr);
+    memMap.entry_size = descriptorSize;
+    memMap.entry_version = descriptorVersion;
 
     *isSuccessful = true;
     return memMap;

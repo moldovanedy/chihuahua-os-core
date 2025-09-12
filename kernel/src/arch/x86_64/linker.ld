@@ -1,0 +1,30 @@
+OUTPUT_FORMAT(elf64-x86-64)
+ENTRY(kernel_main)
+
+SECTIONS {
+    /* load at a high virtual address (higher-half kernel) */
+    . = 0xffffffff80000000;
+
+    .text BLOCK(4K) : ALIGN(4K)
+	{
+		*(.text)
+	}
+
+    /* Read-only data. */
+	.rodata BLOCK(4K) : ALIGN(4K)
+	{
+		*(.rodata)
+	}
+
+	/* Read-write data (initialized) */
+	.data BLOCK(4K) : ALIGN(4K)
+	{
+		*(.data)
+	}
+
+    .bss BLOCK(4K) : ALIGN(4K)
+	{
+		*(COMMON)
+		*(.bss)
+	}
+}

@@ -1,10 +1,9 @@
 #ifndef BOOT_PARAMS_H
 #define BOOT_PARAMS_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
 
-static const int PAGE_SIZE = 4096;
+static constexpr int PAGE_SIZE = 4096;
 
 /**
  * Describes a continuous region of memory in the MemoryMap. Fully compatible with EFI_MEMORY_DESCRIPTOR.
@@ -62,12 +61,12 @@ typedef struct MemoryMap {
  * Represents an invalid memory map. It is returned when something failed while getting the memory map. All values are
  * 0 and the entries array is a null pointer.
  */
-static const MemoryMap INVALID_MEMORY_MAP = {
-    .mem_map_size = 0,
-    .entries = NULL,
-    .mem_map_key = 0,
-    .entry_size = 0,
-    .entry_version = 0
+static constexpr MemoryMap INVALID_MEMORY_MAP = {
+    0,
+    nullptr,
+    0,
+    0,
+    0
 }; 
 
 #endif //BOOT_PARAMS_H

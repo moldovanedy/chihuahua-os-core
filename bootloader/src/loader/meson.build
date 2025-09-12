@@ -1,3 +1,3 @@
 src += files(
-    'kernel_reader.c'
+    'kernel_reader.cpp'
 )

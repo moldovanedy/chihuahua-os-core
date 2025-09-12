@@ -3,8 +3,10 @@
 
 #include <efi.h>
 
-extern EFI_STATUS efi_main(EFI_HANDLE h, EFI_SYSTEM_TABLE *st);
+extern "C" EFI_STATUS EfiMain(EFI_HANDLE handle, EFI_SYSTEM_TABLE *st);
 
-EFI_STATUS print(CHAR16 *str);
+namespace Log {
+    EFI_STATUS print(CHAR16 *str);
+}
 
 #endif //MAIN_H
