@@ -8,13 +8,14 @@ if [[ $# -ne 2 ]]; then
     exit 1
 fi
 
-LOOPBACK_DEV="$(losetup --find --show $1)"
-mount "$LOOPBACK_DEV" $2
+LOOPBACK_OUTPUT=$(kpartx -av $1)
+LOOPBACK_DEV=$(echo "$LOOPBACK_OUTPUT" | awk '{print $3}')
+mount "/dev/mapper/${LOOPBACK_DEV}" $2
 
 cp -r ../bin/* $2
 
-umount -l "$LOOPBACK_DEV"
-losetup --detach "$LOOPBACK_DEV"
+umount -l "/dev/mapper/${LOOPBACK_DEV}"
+kpartx -d $1
 
 qemu-system-x86_64 \
   -enable-kvm \

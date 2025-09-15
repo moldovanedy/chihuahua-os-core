@@ -1,7 +1,7 @@
 project(
     'kernel', 'cpp',
     version : '0.1.0',
-    default_options : ['warning_level=3', 'cpp_std=c++20', 'buildtype=release'])
+    default_options : ['warning_level=3', 'strip=true', 'cpp_std=c++20', 'buildtype=release'])
 
 subdir('src')
 

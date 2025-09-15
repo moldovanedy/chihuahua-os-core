@@ -9,6 +9,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 dd if=/dev/zero of="$1" bs=1M count=512
-loopback_dev="$(losetup --find --show $1)"
+printf "o\ny\nn\n\n\n\nef00\nw\ny\n" > gdisk $1
+loopback_dev="$(losetup --offset $((512*2048)) --sizelimit $(((1046527-2048+1)*512)) --find --show $1)"
 mkfs.vfat "$loopback_dev"
 losetup --detach "$loopback_dev"

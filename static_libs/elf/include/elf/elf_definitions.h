@@ -14,6 +14,11 @@ namespace Elf {
     
     constexpr int ELF_IDENT_SIZE = 16;
 
+    constexpr char ELF_MAG0 = 0x7F;
+    constexpr char ELF_MAG1 = 'E';
+    constexpr char ELF_MAG2 = 'L';
+    constexpr char ELF_MAG3 = 'F';
+    
     /**
      * The ELF header identifier indices.
      */
@@ -100,7 +105,7 @@ namespace Elf {
     /**
      * ELF header: the file's basic information holder.
      */
-    typedef struct Elf64_ElfHeader {
+    struct Elf64_ElfHeader {
         /**
          * Identifiers like architecture, endianness, version etc. See Elf_IdentIndex for the array indexers to use.
          */
@@ -157,7 +162,7 @@ namespace Elf {
          * The index of the entry in the section header table that contains the actual section names.
          */
         uint16_t SectionNamesEntryIndex;
-    } Elf64_ElfHeader;
+    };
 #pragma endregion //ELF file header
 
 
@@ -212,7 +217,12 @@ namespace Elf {
         PF_R = 4,
     };
 
-    typedef struct Elf64_ProgHeader {
+    inline Elf_SegmentFlags operator|(Elf_SegmentFlags a, Elf_SegmentFlags b)
+    {
+        return static_cast<Elf_SegmentFlags>(static_cast<int>(a) | static_cast<int>(b));
+    }
+
+    struct Elf64_ProgHeader {
         /**
          * Segment type; see Elf_ProgramType for more info.
          */
@@ -220,7 +230,7 @@ namespace Elf {
         /**
          * Segment-dependent flags; see Elf_SegmentFlags for more info.
          */
-        uint32_t Flags;
+        Elf_SegmentFlags Flags;
         /**
          * Offset (from the beginning of the file) of the segment in the file.
          */
@@ -230,22 +240,22 @@ namespace Elf {
          */
         Elf64_Addr VirtAddress;
         /**
-         * The segment's physical address; should either be 0 or equal to p_vaddr.
+         * The segment's physical address; should either be 0 or equal to VirtAddress.
          */
         Elf64_Addr PhysAddress;
         /**
          * The segment size in the file; might be 0.
          */
-        uint32_t SizeInFile;
+        uint64_t SizeInFile;
         /**
          * The segment size in memory; might be 0.
          */
-        uint32_t SizeInMemory;
+        uint64_t SizeInMemory;
         /**
-         * 0 and 1 specify no alignment. Otherwise, a power of two, where p_vaddr = p_offset % p_align.
+         * 0 and 1 specify no alignment. Otherwise, a power of two, where VirtAddress = Offset % Alignment.
          */
-        uint32_t Alignment;
-    } Elf64_ProgHeader;
+        uint64_t Alignment;
+    };
 
 #pragma endregion  //ELF program header
 
@@ -370,7 +380,12 @@ namespace Elf {
         SHF_TLS = 0x400,
     };
 
-    typedef struct Elf64_SectionHeader {
+    inline Elf_SectionFlags operator|(Elf_SectionFlags a, Elf_SectionFlags b)
+    {
+        return static_cast<Elf_SectionFlags>(static_cast<int>(a) | static_cast<int>(b));
+    }
+
+    struct Elf64_SectionHeader {
         /**
          * The index of the string (in the ".shstrtab" section) that represents this section.
          */
@@ -380,9 +395,9 @@ namespace Elf {
          */
         Elf_SectionType SectionHeaderType;
         /**
-         * Section attribute flags. See Elf_SectionFlags for more info.
+         * Section attribute flags.
          */
-        uint64_t Flags;
+        Elf_SectionFlags Flags;
         /**
          * The virtual address of this section.
          */
@@ -408,11 +423,13 @@ namespace Elf {
          */
         uint64_t AddressAlignment;
         /**
-         * The size in bytes of each entry for sections that contain fixed-size entries. Otherwise 0.
+         * The size in bytes of each entry for sections that contain fixed-size entries; otherwise it's 0.
          */
         uint64_t EntryFixedSize;
-    } Elf64_SectionHeader;
+    };
     
 #pragma endregion //ELF section header
+    
 } //namespace Elf
+
 #endif //ELF_ELF_DEFINITIONS_H

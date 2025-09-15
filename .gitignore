@@ -1,16 +1,23 @@
-.directory
 bin/
+pkg_config/
 
 **/.idea/
 **/buildDir/
 **/bin/
 
+# logs, test image files, etc.
 *.img
 *.log
 
+# binaries
 *.a
 *.lib
 *.so
 
 # This contains details specific to the host environment
 host_config.ini
+
+# desktop environment personalization
+**/.directory
+**/.DS_store
+**/desktop.ini

@@ -1,8 +1,8 @@
 #include <efi.h>
 
-#include <boot_params.h>
-
+#include "boot_params.h"
 #include "loader/kernel_reader.h"
+
 #include "main.h"
 
 /**
@@ -25,7 +25,7 @@ EFI_STATUS Log::print(CHAR16 *str) {
     return cout->OutputString(cout, str);
 }
 
-extern "C" EFI_STATUS EfiMain(EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
+extern "C" EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
     systemTable = st;
     cout = systemTable->ConOut;
 

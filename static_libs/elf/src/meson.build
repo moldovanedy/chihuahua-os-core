@@ -1,2 +1,1 @@
-src = []
-src += files('library.cpp')
+src += files('elf_loader.cpp')

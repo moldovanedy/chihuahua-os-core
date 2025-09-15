@@ -13,16 +13,13 @@ chihuahua_essentials = static_library(
     c_args: ['-ffreestanding'],
     include_directories: include_dir,
     install: true,
-    install_dir: meson.project_source_root() / 'bin'
+    install_dir: meson.project_source_root() / 'lib'
 )
 
-install_headers('include/string.h', subdir: 'chihuahua_essentials')
+subdir('include')
+install_headers(include_headers, subdir: 'chihuahua_essentials')
 
-pkg_mod = import('pkgconfig')
-pkg_mod.generate(
-    name: 'chihuahua_essentials',
-    description: 'Utils',
-    install_dir: 'bin',
-    libraries: chihuahua_essentials,
-    subdirs: 'chihuahua_essentials'
+chihuahua_essentials_dep = declare_dependency(
+    include_directories: include_dir,
+    link_with: chihuahua_essentials
 )
