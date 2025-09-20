@@ -1,6 +1,6 @@
 src += files(
-    'memcpy.c',
-    'memset.c',
-    'memcmp.c',
-    'memmove.c'
+    'memcpy.cpp',
+    'memset.cpp',
+    'memcmp.cpp',
+    'memmove.cpp'
 )

@@ -1,4 +1,3 @@
-src = []
-src += files(
-    'library.cpp'
-)
+src += files('page_table.cpp')
+
+subdir('arch')

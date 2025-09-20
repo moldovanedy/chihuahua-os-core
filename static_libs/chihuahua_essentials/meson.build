@@ -1,8 +1,8 @@
 project(
     'chihuahua_essentials',
-    'c',
+    'cpp',
     version : '0.1.0',
-    default_options : ['warning_level=3', 'c_std=c11'])
+    default_options : ['warning_level=3', 'cpp_std=c++20'])
 
 include_dir = include_directories('include')
 subdir('src')
@@ -10,7 +10,7 @@ subdir('src')
 chihuahua_essentials = static_library(
     'chihuahua_essentials', 
     src,
-    c_args: ['-ffreestanding'],
+#    c_args: ['-ffreestanding'],
     include_directories: include_dir,
     install: true,
     install_dir: meson.project_source_root() / 'lib'

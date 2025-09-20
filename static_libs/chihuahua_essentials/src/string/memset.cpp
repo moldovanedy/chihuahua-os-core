@@ -1,11 +1,10 @@
-#include <stddef.h>
-#include <stdint.h>
+#include <cstdint>
 
 #include "string.h"
 
 void *memset(void* dest, int c, size_t n) {
     //some code taken from Musl libc for optimisation
-    unsigned char *traverser = dest;
+    auto *traverser = static_cast<unsigned char *>(dest);
 
     if (n == 0) {
         return dest;
@@ -36,18 +35,18 @@ void *memset(void* dest, int c, size_t n) {
      * already took care of any head/tail that get cut off
      * by the alignment. */
 
-    const size_t k = -(uintptr_t)traverser & 3;
+    const size_t k = -reinterpret_cast<uintptr_t>(traverser) & 3;
     traverser += k;
     n -= k;
     n &= -4;
     n /= 4;
 
-    uint32_t *w_traverser = (uint32_t *)traverser;
+    auto *w_traverser = reinterpret_cast<uint32_t *>(traverser);
     uint32_t w_c = c & 0xFF;
     w_c |= w_c << 8 | w_c << 16 | w_c << 24;
 
     /* Pure C with no aliasing violations. */
-    for (; n; n--, w_traverser++) {
+    for (; n != 0; n--, w_traverser++) {
         *w_traverser = w_c;
     }
 
