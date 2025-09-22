@@ -1,14 +1,10 @@
+#include "paginator/page_table.h"
+
 #if __x86_64__
 #include "arch/x86_64/x86_64_paging_controller.h"
 #endif
 
-#include "paginator/page_table.h"
-
 namespace Paginator {
-#if __x86_64__
-    std::optional<X86_64PagingController> _pagingController = std::nullopt;
-#endif
-    
     PageTableRootController::PageTableRootController(
         PageTable_t *rootPageTable,
         const PageFrameAllocator allocator,
@@ -17,59 +13,56 @@ namespace Paginator {
             pagingDisabledNow(pagingDisabledNow),
             allocator(allocator)
     {
-#if __x86_64__
-        _pagingController = X86_64PagingController(rootPageTable, allocator);
-#endif
     }
 
     PageMapError PageTableRootController::mapPage(
         const std::size_t virtAddress,
         const std::size_t physAddress,
         const PageFlags flags,
-        const bool forceWrite)
-    {
-        if (!_pagingController.has_value()) {
-            return PageMapError::UnknownError;
-        }
-        
-        return _pagingController.value().mapPage(virtAddress, physAddress, flags, forceWrite);
+        const bool forceWrite) const {
+#if __x86_64__
+        return X86_64::mapPage(
+            this->rootPageTableAddress,
+            this->allocator,
+            virtAddress,
+            physAddress,
+            flags,
+            forceWrite,
+            this->pagingDisabledNow);
+#endif
     }
 
-    void PageTableRootController::unmapPage(const std::size_t virtAddress) {
-        if (!_pagingController.has_value()) {
-            return;
-        }
-        
-        return _pagingController.value().unmapPage(virtAddress);
+    void PageTableRootController::unmapPage(const std::size_t virtAddress) const {
+#if __x86_64__
+        X86_64::unmapPage(this->rootPageTableAddress, virtAddress, this->pagingDisabledNow);
+#endif
     }
 
-    
     PageMapError PageTableRootController::identityMapPage(
         const std::size_t address,
         const PageFlags flags,
-        const bool forceWrite)
-    {
-        if (!_pagingController.has_value()) {
-            return PageMapError::UnknownError;
-        }
-        
-        return _pagingController.value().mapPage(address, address, flags, forceWrite);
+        const bool forceWrite) const {
+#if __x86_64__
+        return X86_64::mapPage(
+            this->rootPageTableAddress,
+            this->allocator,
+            address,
+            address,
+            flags,
+            forceWrite,
+            this->pagingDisabledNow);
+#endif
     }
 
-    std::size_t PageTableRootController::translateVirtToPhys(const std::size_t virtAddress) {
-        if (!_pagingController.has_value()) {
-            return false;
-        }
-        
-        return _pagingController.value().translateVirtToPhys(virtAddress);
+    std::size_t PageTableRootController::translateVirtToPhys(const std::size_t virtAddress) const {
+#if __x86_64__
+        return X86_64::translateVirtToPhys(this->rootPageTableAddress, virtAddress, this->pagingDisabledNow);
+#endif
     }
 
-    bool PageTableRootController::activateRootPageTable() {
-        if (!_pagingController.has_value()) {
-            return false;
-        }
-        
-        return _pagingController.value().activateRootPageTable();
+    bool PageTableRootController::activateRootPageTable() const {
+#if __x86_64__
+        return X86_64::activateRootPageTable(this->rootPageTableAddress, this->pagingDisabledNow);
+#endif
     }
-
 } //namespace Paginator

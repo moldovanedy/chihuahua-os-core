@@ -11,9 +11,14 @@ include_dir = include_directories('include')
 src = []
 subdir('src')
 
-static_library(
+paginator = static_library(
     'paginator',
     src,
     include_directories: include_dir,
     dependencies: [chihuahua_essentials_dep],
+)
+
+paginator_dep = declare_dependency(
+    include_directories : include_dir,
+    link_with : paginator
 )

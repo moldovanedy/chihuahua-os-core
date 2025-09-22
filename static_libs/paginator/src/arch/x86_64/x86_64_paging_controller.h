@@ -1,9 +1,11 @@
 #ifndef PAGINATOR_ARCH_X86_64_PAGING_CONTROLLER_H
 #define PAGINATOR_ARCH_X86_64_PAGING_CONTROLLER_H
 
-#include "paginator/paging_controller.h"
+#include <cstdint>
 
-namespace Paginator {
+#include "paginator/page_table.h"
+
+namespace Paginator::X86_64 {
     enum class X86_64PageFlags : uint64_t {
         Present = 1,
         /**
@@ -34,7 +36,7 @@ namespace Paginator {
         /**
          * If set, this page is not executable, otherwise it can host executable code.
          */
-        ExecuteDisable = 1UL << 63UL,
+        ExecuteDisable = 1ULL << 63ULL,
     };
 
     inline X86_64PageFlags operator|(X86_64PageFlags a, X86_64PageFlags b)
@@ -51,44 +53,20 @@ namespace Paginator {
         return static_cast<X86_64PageFlags>(~static_cast<uint64_t>(a));
     }
 
-    
-    class X86_64PagingController final : public IPagingController {
-    public:
-        explicit X86_64PagingController(
-            PageTable_t *rootPageTable,
-            const PageTableRootController::PageFrameAllocator allocator,
-            const bool pagingDisabledNow = false)
-            : IPagingController(
-                rootPageTable,
-                4096,
-                std::optional<std::size_t>(1024 * 1024 * 2),
-                allocator,
-                pagingDisabledNow) {
-        }
+    PageMapError mapPage(
+        PageTable_t *rootPageTable,
+        PageTableRootController::PageFrameAllocator allocator,
+        std::size_t virtAddress,
+        std::size_t physAddress,
+        PageFlags flags,
+        bool forceWrite,
+        bool pagingDisabledNow = false);
 
-        ~X86_64PagingController() override = default;
+    void unmapPage(PageTable_t *rootPageTable, std::size_t virtAddress, bool pagingDisabledNow = false);
 
-        X86_64PagingController& operator=(const X86_64PagingController &value) {
-            this->rootPageTable = value.rootPageTable;
-            this->pageSize = value.pageSize;
-            this->hugePageSize = value.hugePageSize;
-            return *this;
-        }
+    uint64_t translateVirtToPhys(const PageTable_t *rootPageTable, std::size_t virtAddress,
+                                 bool pagingDisabledNow = false);
 
-        [[nodiscard]]
-        PageMapError mapPage(
-            std::size_t virtAddress,
-            std::size_t physAddress,
-            PageFlags flags,
-            bool forceWrite) const override;
-
-        void unmapPage(std::size_t virtAddress) const override;
-        
-        [[nodiscard]]
-        std::size_t translateVirtToPhys(std::size_t virtAddress) const override;
-
-        [[nodiscard]]
-        bool activateRootPageTable() const override;
-    };
-} //namespace Paging
+    bool activateRootPageTable(PageTable_t *rootPageTable, bool pagingDisabledNow = false);
+} //namespace Paginator::X86_64
 #endif //PAGINATOR_ARCH_X86_64_PAGING_CONTROLLER_H

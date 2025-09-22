@@ -1,7 +1,9 @@
 src = files(
-    'main.cpp'
+    'main.cpp',
+    'gop.cpp',
 )
 
 subdir('loader')
 subdir('elf')
-subdir('tiny_libc')
+subdir('paginator')
+subdir('chihuahua_essentials')

@@ -9,4 +9,6 @@ namespace Log {
     EFI_STATUS print(CHAR16 *str);
 }
 
+[[noreturn]] void panic();
+
 #endif //MAIN_H

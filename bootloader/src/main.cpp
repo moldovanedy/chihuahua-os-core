@@ -5,6 +5,8 @@
 
 #include "main.h"
 
+#include "gop.h"
+
 /**
  * Returns the current memory map. Might fail in multiple ways, so always check isSuccessful. If it's not successful,
  * the returned value is invalid and should not be used.
@@ -12,7 +14,7 @@
  * false otherwise.
  * @return The memory map or an invalid value if something failed.
  */
-static MemoryMap getMemoryMap(bool *isSuccessful);
+static MemoryMap_t getMemoryMap(bool *isSuccessful);
 
 static EFI_SYSTEM_TABLE *systemTable = nullptr;
 static EFI_SIMPLE_TEXT_OUT_PROTOCOL *cout = nullptr;
@@ -25,40 +27,68 @@ EFI_STATUS Log::print(CHAR16 *str) {
     return cout->OutputString(cout, str);
 }
 
-extern "C" EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
+[[noreturn]] void panic() {
+    Log::print(L"Boot failed. You can turn off the device now.\r\n");
+
+    while (true) {
+        UINTN x;
+        systemTable->BootServices->WaitForEvent(1, &systemTable->ConIn->WaitForKey, &x);
+    }
+}
+
+extern "C" EFI_STATUS efi_main(const EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
     systemTable = st;
     cout = systemTable->ConOut;
 
-    // ReSharper disable once CppStringLiteralToCharPointerConversion
-    EFI_STATUS initialPrintStatus = Log::print(L"Start booting ChihuahuaOS.\r\n");
-    if (EFI_ERROR(initialPrintStatus)) {
-        return initialPrintStatus;
+    Log::print(L"Start booting ChihuahuaOS.\r\n");
+
+    EFI_GUID gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+    EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+
+    EFI_STATUS status = st->BootServices->LocateProtocol(
+        &gopGuid, nullptr, reinterpret_cast<void **>(&gop));
+    if (EFI_ERROR(status)) {
+        Log::print(L"Failed to locate graphics output protocol.\r\n");
+        panic();
     }
+
+    FramebufferInfo_t fbInfo = INVALID_FRAMEBUFFER_INFO;
+    constexpr int PREFERRED_WIDTH = 1920;
+    constexpr int PREFERRED_HEIGHT = 1080;
+    if (Gop::setAppropriateFramebuffer(gop, PREFERRED_WIDTH, PREFERRED_HEIGHT, &fbInfo)) {
+        //everything printed until now will be lost, but the cursor position won't be reset, so we reset it now 
+        cout->ClearScreen(cout);
+        cout->SetCursorPosition(cout, 0, 0);
+
+        Log::print(L"Set graphics mode successfully.\r\n");
+    } else {
+        Log::print(L"WARN: Failed to set a graphics mode.\r\n");
+    }
+
 
     KernelReader::KernelLoadError error;
     KernelReader::readKernel(handle, st, &error);
 
+
     bool isSuccessful;
-    MemoryMap memMap = getMemoryMap(&isSuccessful);
+    getMemoryMap(&isSuccessful);
     if (isSuccessful) {
-        // ReSharper disable once CppStringLiteralToCharPointerConversion
         Log::print(L"Memory map retrieved.\r\n");
     }
     else {
-        // ReSharper disable once CppStringLiteralToCharPointerConversion
         Log::print(L"Memory map failed.\r\n");
     }
 
     UINTN x;
-    initialPrintStatus = systemTable->BootServices->WaitForEvent(1, &systemTable->ConIn->WaitForKey, &x);
-    if (EFI_ERROR(initialPrintStatus)) {
-        return initialPrintStatus;
+    status = systemTable->BootServices->WaitForEvent(1, &systemTable->ConIn->WaitForKey, &x);
+    if (EFI_ERROR(status)) {
+        return status;
     }
 
     return 0;
 }
 
-static MemoryMap getMemoryMap(bool *isSuccessful) {
+static MemoryMap_t getMemoryMap(bool *isSuccessful) {
     *isSuccessful = false;
 
     if (systemTable == nullptr) {
@@ -88,10 +118,10 @@ static MemoryMap getMemoryMap(bool *isSuccessful) {
         &descriptorVersion);
 
     if (!EFI_ERROR(status)) {
-        MemoryMap mem_map;
+        MemoryMap_t mem_map;
         mem_map.mem_map_size = mapSize;
         mem_map.mem_map_key = mapKey;
-        mem_map.entries = reinterpret_cast<MemoryMapEntry *>(memMapPtr);
+        mem_map.entries = reinterpret_cast<MemoryMapEntry_t *>(memMapPtr);
         mem_map.entry_size = descriptorSize;
         mem_map.entry_version = descriptorVersion;
 
@@ -133,10 +163,10 @@ static MemoryMap getMemoryMap(bool *isSuccessful) {
         return INVALID_MEMORY_MAP;
     }
 
-    MemoryMap memMap;
+    MemoryMap_t memMap;
     memMap.mem_map_size = mapSize;
     memMap.mem_map_key = mapKey;
-    memMap.entries = reinterpret_cast<MemoryMapEntry *>(memMapPtr);
+    memMap.entries = reinterpret_cast<MemoryMapEntry_t *>(memMapPtr);
     memMap.entry_size = descriptorSize;
     memMap.entry_version = descriptorVersion;
 

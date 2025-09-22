@@ -90,17 +90,17 @@ namespace Paginator {
          * virtual address is already mapped to another physical address).
          * @return True if the mapping succeeded, false otherwise.
          */
-        static PageMapError mapPage(
+        [[nodiscard]] PageMapError mapPage(
             std::size_t virtAddress,
             std::size_t physAddress,
             PageFlags flags,
-            bool forceWrite = true);
+            bool forceWrite = true) const;
 
         /**
          * Unmaps the given virtual address from the page tables.
          * @param virtAddress The virtual address to unmap.
          */
-        static void unmapPage(std::size_t virtAddress);
+        void unmapPage(std::size_t virtAddress) const;
 
         /**
          * A simple wrapper around mapPage that maps the virtual address to the same physical address.
@@ -111,20 +111,20 @@ namespace Paginator {
          * virtual address is already mapped to another physical address).
          * @return True if the mapping succeeded, false otherwise.
          */
-        static PageMapError identityMapPage(std::size_t address, PageFlags flags, bool forceWrite = true);
+        [[nodiscard]] PageMapError identityMapPage(std::size_t address, PageFlags flags, bool forceWrite = true) const;
 
         /**
          * Translates a virtual address to a physical one if a mapping for the virtual address exists.
          * @param virtAddress The virtual address for which you want the physical address.
          * @return The physical address corresponding to the given virtual address or 0 if a mapping does not exist.
          */
-        static std::size_t translateVirtToPhys(std::size_t virtAddress);
+        [[nodiscard]] std::size_t translateVirtToPhys(std::size_t virtAddress) const;
 
         /**
          * Activates (or applies) the given root page table, so all the paging rules set are immediately effective.
          * @return True if the operation succeeded, false otherwise.
          */
-        static bool activateRootPageTable();
+        [[nodiscard]] bool activateRootPageTable() const;
 
     private:
         PageFrameAllocator allocator;

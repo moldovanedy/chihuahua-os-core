@@ -8,7 +8,7 @@ static constexpr int PAGE_SIZE = 4096;
 /**
  * Describes a continuous region of memory in the MemoryMap. Fully compatible with EFI_MEMORY_DESCRIPTOR.
  */
-typedef struct MemoryMapEntry {
+struct MemoryMapEntry_t {
     /**
      * The type of memory that's used here.
      */
@@ -29,20 +29,20 @@ typedef struct MemoryMapEntry {
      * Some flags that further describe the region.
      */
     uint64_t flags;
-} MemoryMapEntry;
+};
 
 /**
  * Describes the memory map for the RAM. Fully compatible with the parameters of UEFI's EFI_BOOT_SERVICES.GetMemoryMap().
  */
-typedef struct MemoryMap {
+struct MemoryMap_t {
     /**
      * The size (in bytes) of the entries array.
      */
     size_t mem_map_size;
     /**
-     * An array of memory map entries. This is the important data. The array size is entry_count.
+     * An array of memory map entries. This is the important data. The array size is mem_map_size / entry_size.
      */
-    MemoryMapEntry* entries;
+    MemoryMapEntry_t *entries;
     /**
      * The UEFI key for this memory map (determines if the map is valid or not).
      */
@@ -55,18 +55,32 @@ typedef struct MemoryMap {
      * The UEFI spec version for the entry.
      */
     uint32_t entry_version;
-} MemoryMap;
+};
 
 /**
  * Represents an invalid memory map. It is returned when something failed while getting the memory map. All values are
  * 0 and the entries array is a null pointer.
  */
-static constexpr MemoryMap INVALID_MEMORY_MAP = {
+static constexpr MemoryMap_t INVALID_MEMORY_MAP = {
     0,
     nullptr,
     0,
     0,
     0
-}; 
+};
+
+struct FramebufferInfo_t {
+    uint32_t Width;
+    uint32_t Height;
+    uint32_t BytesPerRow;
+    bool isRgb;
+};
+
+static constexpr FramebufferInfo_t INVALID_FRAMEBUFFER_INFO = {
+    0,
+    0,
+    0,
+    false
+};
 
 #endif //BOOT_PARAMS_H

@@ -4,10 +4,16 @@ project(
     version : '0.1.0',
     default_options : ['warning_level=3', 'cpp_std=c++20'])
 
-include_dir = include_directories(['include', 'src/elf/include', 'src/tiny_libc'])
+include_dir = include_directories(
+    [
+        'include',
+        'src/elf/include',
+        'src/paginator/include',
+        'src/chihuahua_essentials/include'
+    ])
 subdir('src')
 
-bootloader_meson = executable(
+bootloader = executable(
     'BOOTX64.EFI', 
     src,
     include_directories: include_dir,

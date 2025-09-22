@@ -5,6 +5,7 @@ project(
     default_options : ['warning_level=3', 'cpp_std=c++20'])
 
 include_dir = include_directories('include')
+src = []
 subdir('src')
 
 chihuahua_essentials = static_library(

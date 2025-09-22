@@ -28,7 +28,7 @@ namespace KernelReader {
         }
 
         EFI_FILE_HANDLE fileHandle;
-        EFI_STATUS status = volumeHandle->Open(
+        const EFI_STATUS status = volumeHandle->Open(
             volumeHandle,
             &fileHandle,
             L"\\boot\\kernel.elf",
@@ -61,13 +61,11 @@ namespace KernelReader {
             return INVALID_KERNEL_ELF_INFO;
         }
 
-        auto elfLoader = Elf::ElfLoader(kernelFileInfo.Buffer, kernelFileInfo.BufferSize);
+        const auto elfLoader = Elf::ElfLoader(kernelFileInfo.Buffer, kernelFileInfo.BufferSize);
         Elf::ElfLoader::ElfError err = elfLoader.checkElf();
 
-        if (err == Elf::ElfLoader::ElfError::NoError) {
-            Log::print(L"OK\r\n");
-        } else {
-            Log::print(L"No\r\n");
+        if (err != Elf::ElfLoader::ElfError::NoError) {
+            Log::print(L"Failed to load kernel: ELF header is corrupt.\r\n");
         }
 
         int numProgHeaders = 0;

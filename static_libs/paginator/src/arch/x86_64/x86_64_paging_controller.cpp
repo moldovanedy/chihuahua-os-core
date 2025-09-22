@@ -1,16 +1,17 @@
 #include <cstring.h>
-
-#include "paginator/paging_controller.h"
 #include <chihuahua_essentials/binary_utils.h>
 
 #include "x86_64_paging_controller.h"
 
-namespace Paginator {
+namespace Paginator::X86_64 {
     constexpr uint64_t INDEX_MASK = 0x1FF;
     constexpr uint64_t PAGE_OFFSET_MASK = 0x3FF;
+
     constexpr uint64_t PAGE_TABLE_SIZE = 4096;
-    
-    constexpr uint64_t SIGN_EXTENSION = 0xFFFFUL << 48UL;
+    constexpr uint64_t PAGE_SIZE = 4096;
+    constexpr uint64_t HUGE_PAGE_SIZE = 1024ULL * 1024ULL * 2ULL;
+
+    constexpr uint64_t SIGN_EXTENSION = 0xFFFFULL << 48ULL;
     constexpr uint64_t RECURSIVE_INDEX = 0x01;
     
     constexpr uint64_t P4_SHIFT = 39;
@@ -30,22 +31,24 @@ namespace Paginator {
      * Gets only the physical address of a page entry (uint64_t).
      * @param entry The instance of a page entry (uint64_t).
      */
-#define GET_ADDR_FROM_ENTRY(entry) (((entry) >> 12) & 40)
-    
+#define GET_ADDR_FROM_ENTRY(entry) (((entry) >> 12ULL) & 40ULL)
+
     /**
      * The actual physical address.
      */
-#define SET_PHYSICAL_ADDRESS(entry, val) (entry |= ((val) << 12UL))
+#define SET_PHYSICAL_ADDRESS(entry, val) (entry |= ((val) << 12ULL))
 
 
-#pragma region Interface implementation
-    
-    PageMapError X86_64PagingController::mapPage(
+#pragma region Public implementation
+
+    PageMapError mapPage(
+        PageTable_t *rootPageTable,
+        const PageTableRootController::PageFrameAllocator allocator,
         const std::size_t virtAddress,
         const std::size_t physAddress,
         const PageFlags flags,
-        const bool forceWrite)
-    const {
+        const bool forceWrite,
+        const bool pagingDisabledNow) {
         const uint64_t l4Idx = (virtAddress >> P4_SHIFT) & INDEX_MASK;
         const uint64_t l3Idx = (virtAddress >> P3_SHIFT) & INDEX_MASK;
         const uint64_t l2Idx = (virtAddress >> P2_SHIFT) & INDEX_MASK;
@@ -62,65 +65,155 @@ namespace Paginator {
         }
 
         //if a mapping already exists, and we can't overwrite, return early 
-        if (!forceWrite && translateVirtToPhys(virtAddress) != 0) {
+        if (!forceWrite && translateVirtToPhys(rootPageTable, virtAddress, pagingDisabledNow) != 0) {
             return PageMapError::EntryExists;
         }
 
-        uint64_t entryForL3 = this->rootPageTable->entries[l4Idx];
+
+        uint64_t entryForL3 = rootPageTable->entries[l4Idx];
         if (entryForL3 == 0) {
-            const uint64_t physAddr = this->allocator();
+            const uint64_t physAddr = allocator();
             if (physAddr == 0) {
                 return PageMapError::AllocFailed;
             }
 
-            memset(reinterpret_cast<void *>(physAddr), 0, PAGE_TABLE_SIZE);
-            this->rootPageTable->entries[l4Idx] =
-                entryForL3 =
+            if (pagingDisabledNow) {
+                memset(reinterpret_cast<void *>(physAddr), 0, PAGE_TABLE_SIZE);
+            } else {
+                //TODO
+            }
+
+            rootPageTable->entries[l4Idx] =
+                    entryForL3 =
                     constructTableEntry(physAddr, PageFlags::Present | PageFlags::WriteBit);
 
             //recursive mapping
-            auto *l3Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL3));
+            PageTable_t *l3Table;
+            if (pagingDisabledNow) {
+                l3Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL3));
+            } else {
+                const uint64_t recursiveAddress =
+                        SIGN_EXTENSION
+                        | RECURSIVE_INDEX << P4_SHIFT
+                        | RECURSIVE_INDEX << P3_SHIFT
+                        | RECURSIVE_INDEX << P2_SHIFT
+                        | l4Idx << P1_SHIFT;
+                l3Table = reinterpret_cast<PageTable_t *>(recursiveAddress);
+            }
+
             l3Table->entries[RECURSIVE_INDEX] = entryForL3;
         }
 
-        const auto *l3Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL3));
+
+        PageTable_t *l3Table;
+        if (pagingDisabledNow) {
+            l3Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL3));
+        } else {
+            const uint64_t recursiveAddress =
+                    SIGN_EXTENSION
+                    | RECURSIVE_INDEX << P4_SHIFT
+                    | RECURSIVE_INDEX << P3_SHIFT
+                    | RECURSIVE_INDEX << P2_SHIFT
+                    | l4Idx << P1_SHIFT;
+            l3Table = reinterpret_cast<PageTable_t *>(recursiveAddress);
+        }
+
         uint64_t entryForL2 = l3Table->entries[l3Idx];
         if (entryForL2 == 0) {
-            const uint64_t physAddr = this->allocator();
+            const uint64_t physAddr = allocator();
             if (physAddr == 0) {
                 return PageMapError::AllocFailed;
             }
 
-            memset(reinterpret_cast<void *>(physAddr), 0, PAGE_TABLE_SIZE);
-            this->rootPageTable->entries[l3Idx] =
-                entryForL2 =
+            if (pagingDisabledNow) {
+                memset(reinterpret_cast<void *>(physAddr), 0, PAGE_TABLE_SIZE);
+            } else {
+                //TODO
+            }
+
+            rootPageTable->entries[l3Idx] =
+                    entryForL2 =
                     constructTableEntry(physAddr, PageFlags::Present | PageFlags::WriteBit);
 
-            auto *l2Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL2));
+            PageTable_t *l2Table;
+            if (pagingDisabledNow) {
+                l2Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL2));
+            } else {
+                const uint64_t recursiveAddress =
+                        SIGN_EXTENSION
+                        | RECURSIVE_INDEX << P4_SHIFT
+                        | RECURSIVE_INDEX << P3_SHIFT
+                        | l4Idx << P2_SHIFT
+                        | l3Idx << P1_SHIFT;
+                l2Table = reinterpret_cast<PageTable_t *>(recursiveAddress);
+            }
+
             l2Table->entries[RECURSIVE_INDEX] = entryForL2;
         }
 
-        const auto *l2Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL2));
+
+        PageTable_t *l2Table;
+        if (pagingDisabledNow) {
+            l2Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL2));
+        } else {
+            const uint64_t recursiveAddress =
+                    SIGN_EXTENSION
+                    | RECURSIVE_INDEX << P4_SHIFT
+                    | RECURSIVE_INDEX << P3_SHIFT
+                    | l4Idx << P2_SHIFT
+                    | l3Idx << P1_SHIFT;
+            l2Table = reinterpret_cast<PageTable_t *>(recursiveAddress);
+        }
+
         uint64_t entryForL1 = l2Table->entries[l2Idx];
         if (entryForL1 == 0) {
-            const uint64_t physAddr = this->allocator();
+            const uint64_t physAddr = allocator();
             if (physAddr == 0) {
                 return PageMapError::AllocFailed;
             }
 
-            memset(reinterpret_cast<void *>(physAddr), 0, PAGE_TABLE_SIZE);
-            this->rootPageTable->entries[l2Idx] =
-                entryForL1 =
+            if (pagingDisabledNow) {
+                memset(reinterpret_cast<void *>(physAddr), 0, PAGE_TABLE_SIZE);
+            } else {
+                //TODO
+            }
+
+            rootPageTable->entries[l2Idx] =
+                    entryForL1 =
                     constructTableEntry(physAddr, PageFlags::Present | PageFlags::WriteBit);
 
-            auto *l1Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL1));
+            PageTable_t *l1Table;
+            if (pagingDisabledNow) {
+                l1Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL1));
+            } else {
+                const uint64_t recursiveAddress =
+                        SIGN_EXTENSION
+                        | RECURSIVE_INDEX << P4_SHIFT
+                        | l4Idx << P3_SHIFT
+                        | l3Idx << P2_SHIFT
+                        | l2Idx << P1_SHIFT;
+                l1Table = reinterpret_cast<PageTable_t *>(recursiveAddress);
+            }
+
             l1Table->entries[RECURSIVE_INDEX] = entryForL1;
         }
 
+
         //the actual L1 entry
-        auto *l1Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL1));
+        PageTable_t *l1Table;
+        if (pagingDisabledNow) {
+            l1Table = reinterpret_cast<PageTable_t *>(GET_ADDR_FROM_ENTRY(entryForL1));
+        } else {
+            const uint64_t recursiveAddress =
+                    SIGN_EXTENSION
+                    | RECURSIVE_INDEX << P4_SHIFT
+                    | l4Idx << P3_SHIFT
+                    | l3Idx << P2_SHIFT
+                    | l2Idx << P1_SHIFT;
+            l1Table = reinterpret_cast<PageTable_t *>(recursiveAddress);
+        }
+
         const uint64_t existingPhysAddress = l1Table->entries[l1Idx];
-        
         if (existingPhysAddress != 0) {
             if (forceWrite) {
                 invalidatePage(virtAddress);          
@@ -134,11 +227,14 @@ namespace Paginator {
         return PageMapError::NoError;
     }
 
-    void X86_64PagingController::unmapPage(const std::size_t) const {
+    void unmapPage(PageTable_t *rootPageTable, const std::size_t virtAddress, const bool pagingDisabledNow) {
         //TODO
     }
 
-    std::size_t X86_64PagingController::translateVirtToPhys(const std::size_t virtAddress) const {
+    uint64_t translateVirtToPhys(
+        const PageTable_t *rootPageTable,
+        const std::size_t virtAddress,
+        bool) {
         const uint64_t l4Idx = (virtAddress >> P4_SHIFT) & INDEX_MASK;
         const uint64_t l3Idx = (virtAddress >> P3_SHIFT) & INDEX_MASK;
         const uint64_t l2Idx = (virtAddress >> P2_SHIFT) & INDEX_MASK;
@@ -148,7 +244,7 @@ namespace Paginator {
             return 0;
         }
 
-        const uint64_t l3PhysAddr = GET_ADDR_FROM_ENTRY(this->rootPageTable->entries[l4Idx]);
+        const uint64_t l3PhysAddr = GET_ADDR_FROM_ENTRY(rootPageTable->entries[l4Idx]);
         if (l3PhysAddr == 0) {
             return 0;
         }
@@ -167,13 +263,29 @@ namespace Paginator {
     }
 
     [[nodiscard]]
-    bool X86_64PagingController::activateRootPageTable() const {
+    bool activateRootPageTable(PageTable_t *rootPageTable, bool pagingDisabledNow) {
         //TODO
+
+        uint64_t physAddr;
+        if (pagingDisabledNow) {
+            physAddr = reinterpret_cast<uint64_t>(rootPageTable);
+        } else {
+            uint64_t recursiveAddr =
+                    SIGN_EXTENSION
+                    | (RECURSIVE_INDEX << P4_SHIFT)
+                    | (RECURSIVE_INDEX << P3_SHIFT)
+                    | (RECURSIVE_INDEX << P2_SHIFT)
+                    | (RECURSIVE_INDEX << P1_SHIFT);
+
+            physAddr = reinterpret_cast<PageTable_t *>(recursiveAddr)->entries[RECURSIVE_INDEX];
+        }
+
+        asm ("mov %0, %%cr3;"::"r"(physAddr));
         return false;
     }
-    
-#pragma endregion //Interface implementation
-    
+
+#pragma endregion // Public implementation
+
 
     uint64_t constructTableEntry(const uint64_t physicalAddress, const PageFlags flags) {
         uint64_t data = 0;
@@ -204,40 +316,16 @@ namespace Paginator {
         return data;
     }
 
-    void invalidatePage(uint64_t) {
-        
+    void invalidatePage(const uint64_t virtAddress) {
+        // uintptr_t va = virtAddress;
+        // int i = 1;
+        //asm volatile("invlpg [%0]" :: "r"(va+i));
     }
-    
-    //this is for getting the address of a certain table that is recursively mapped
-        
-    // uint64_t l4_idx = (virtAddress >> P4_SHIFT) & INDEX_MASK;
-    // uint64_t l3_idx = (virtAddress >> P3_SHIFT) & INDEX_MASK;
-    // uint64_t l2_idx = (virtAddress >> P2_SHIFT) & INDEX_MASK;
-    // uint64_t l1_idx = (virtAddress >> P1_SHIFT) & INDEX_MASK;
-    // uint64_t page_offset = virtAddress & PAGE_OFFSET_MASK;
-    //
+
     // uint64_t level_4_table_addr =
     //     SIGN_EXTENSION
     // | (RECURSIVE_INDEX << P4_SHIFT)
     // | (RECURSIVE_INDEX << P3_SHIFT)
     // | (RECURSIVE_INDEX << P2_SHIFT)
     // | (RECURSIVE_INDEX << P1_SHIFT);
-    // uint64_t level_3_table_addr =
-    //     SIGN_EXTENSION
-    // | (RECURSIVE_INDEX << P4_SHIFT)
-    // | (RECURSIVE_INDEX << P3_SHIFT)
-    // | (RECURSIVE_INDEX << P2_SHIFT)
-    // | (l4_idx << P1_SHIFT);
-    // uint64_t level_2_table_addr =
-    //     SIGN_EXTENSION
-    // | (RECURSIVE_INDEX << P4_SHIFT)
-    // | (RECURSIVE_INDEX << P3_SHIFT)
-    // | (l4_idx << P2_SHIFT)
-    // | (l3_idx << P1_SHIFT);
-    // uint64_t level_1_table_addr =
-    //     SIGN_EXTENSION
-    // | (RECURSIVE_INDEX << P4_SHIFT)
-    // | (l4_idx << P3_SHIFT)
-    // | (l3_idx << P2_SHIFT)
-    // | (l2_idx << P1_SHIFT);
-} //namespace Paging
+} //namespace Paginator::X86_64
