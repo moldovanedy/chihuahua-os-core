@@ -5,11 +5,6 @@
 
 #include "elf_definitions.h"
 
-extern "C" {
-    int a();
-    void b();
-}
-
 namespace Elf
 {
     class ElfLoader

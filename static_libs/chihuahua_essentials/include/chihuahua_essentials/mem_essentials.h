@@ -1,5 +1,5 @@
-#ifndef CHIHUAHUA_ESSENTIALS_STRING_H
-#define CHIHUAHUA_ESSENTIALS_STRING_H
+#ifndef CHIHUAHUA_ESSENTIALS_MEM_ESSENTIALS_H
+#define CHIHUAHUA_ESSENTIALS_MEM_ESSENTIALS_H
 
 #include <cstddef>
 
@@ -10,4 +10,4 @@ extern "C" {
     void *memmove(void *dest, const void *src, size_t n);
 }
 
-#endif //CHIHUAHUA_ESSENTIALS_STRING_H
+#endif //CHIHUAHUA_ESSENTIALS_MEM_ESSENTIALS_H
