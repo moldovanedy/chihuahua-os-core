@@ -2,10 +2,9 @@
 
 #include "boot_params.h"
 #include "loader/kernel_reader.h"
+#include "gop.h"
 
 #include "main.h"
-
-#include "gop.h"
 
 /**
  * Returns the current memory map. Might fail in multiple ways, so always check isSuccessful. If it's not successful,

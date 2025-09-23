@@ -1,4 +1,4 @@
-#include <cstring.h>
+#include <chihuahua_essentials/mem_essentials.h>
 #include <chihuahua_essentials/binary_utils.h>
 
 #include "x86_64_paging_controller.h"

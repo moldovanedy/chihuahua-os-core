@@ -1,2 +1,5 @@
-src += files('result.cpp')
-subdir('string')
+src += files(
+    'result.cpp', 
+    'option.cpp',
+    'mem_essentials.cpp'
+)

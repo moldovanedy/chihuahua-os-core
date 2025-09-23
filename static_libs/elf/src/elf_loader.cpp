@@ -1,17 +1,7 @@
 #include "elf/elf_definitions.h"
-#include "cstring.h"
+#include "chihuahua_essentials/mem_essentials.h"
 
 #include "elf/elf_loader.h"
-
-extern "C" {
-    int a() {
-        return 5;
-    }
-
-    void b() {
-        
-    }
-}
 
 namespace Elf
 {

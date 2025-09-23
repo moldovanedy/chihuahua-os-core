@@ -1,5 +1,5 @@
 project(
-    'chihuahua_essentials',
+    'c_husky',
     'cpp',
     version : '0.1.0',
     default_options : ['warning_level=3', 'cpp_std=c++20'])
@@ -8,13 +8,13 @@ include_dir = include_directories('include')
 src = []
 subdir('src')
 
-chihuahua_essentials = static_library(
-    'chihuahua_essentials', 
+c_husky = static_library(
+    'c_husky',
     src,
     include_directories: include_dir,
 )
 
-chihuahua_essentials_dep = declare_dependency(
+c_huskyc_dep = declare_dependency(
     include_directories: include_dir,
-    link_with: chihuahua_essentials
+    link_with: c_husky
 )

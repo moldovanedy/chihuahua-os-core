@@ -1,6 +1,6 @@
 #include <cstdint>
 
-#include "string.h"
+#include "cstring.h"
 
 void *memset(void* dest, int c, size_t n) {
     //some code taken from Musl libc for optimisation

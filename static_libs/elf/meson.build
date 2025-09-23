@@ -15,12 +15,9 @@ elf = static_library(
     'elf', 
     src,
     include_directories: include_dir,
-    cpp_args: ['-ffreestanding'],
     dependencies: [
         chihuahua_essentials_dep
     ],
-    install: true,
-    install_dir: meson.project_source_root() / 'lib'
 )
 
 elf_dep = declare_dependency(
