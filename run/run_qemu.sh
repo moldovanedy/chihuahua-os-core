@@ -24,6 +24,7 @@ qemu-system-x86_64 \
   -bios /usr/share/edk2/ovmf/OVMF_CODE.fd \
   -boot order=d \
   -serial file:debug.log \
+  -monitor stdio \
   -d int \
   -no-reboot \
   -no-shutdown

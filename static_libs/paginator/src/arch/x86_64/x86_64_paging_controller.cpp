@@ -48,7 +48,8 @@ namespace Paginator::X86_64 {
         const std::size_t physAddress,
         const PageFlags flags,
         const bool forceWrite,
-        const bool pagingDisabledNow) {
+        const bool pagingDisabledNow)
+    {
         const uint64_t l4Idx = (virtAddress >> P4_SHIFT) & INDEX_MASK;
         const uint64_t l3Idx = (virtAddress >> P3_SHIFT) & INDEX_MASK;
         const uint64_t l2Idx = (virtAddress >> P2_SHIFT) & INDEX_MASK;
@@ -84,7 +85,7 @@ namespace Paginator::X86_64 {
             }
 
             rootPageTable->entries[l4Idx] =
-                    entryForL3 =
+                entryForL3 =
                     constructTableEntry(physAddr, PageFlags::Present | PageFlags::WriteBit);
 
             //recursive mapping
@@ -132,7 +133,7 @@ namespace Paginator::X86_64 {
             }
 
             rootPageTable->entries[l3Idx] =
-                    entryForL2 =
+                entryForL2 =
                     constructTableEntry(physAddr, PageFlags::Present | PageFlags::WriteBit);
 
             PageTable_t *l2Table;
@@ -179,7 +180,7 @@ namespace Paginator::X86_64 {
             }
 
             rootPageTable->entries[l2Idx] =
-                    entryForL1 =
+                entryForL1 =
                     constructTableEntry(physAddr, PageFlags::Present | PageFlags::WriteBit);
 
             PageTable_t *l1Table;
@@ -280,7 +281,11 @@ namespace Paginator::X86_64 {
             physAddr = reinterpret_cast<PageTable_t *>(recursiveAddr)->entries[RECURSIVE_INDEX];
         }
 
-        asm ("mov %0, %%cr3;"::"r"(physAddr));
+        uint64_t cr3Flags;
+        asm ("mov %0, cr3;" : "=r"(cr3Flags));
+
+        physAddr |= cr3Flags & (PAGE_SIZE - 1);
+        asm ("mov cr3, %0;"::"r"(physAddr));
         return false;
     }
 

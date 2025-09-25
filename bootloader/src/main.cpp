@@ -6,6 +6,9 @@
 
 #include "main.h"
 
+#include "chihuahua_essentials/mem_essentials.h"
+#include "loader/memory_mapper.h"
+
 /**
  * Returns the current memory map. Might fail in multiple ways, so always check isSuccessful. If it's not successful,
  * the returned value is invalid and should not be used.
@@ -35,7 +38,7 @@ EFI_STATUS Log::print(CHAR16 *str) {
     }
 }
 
-extern "C" EFI_STATUS efi_main(const EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
+extern "C" EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
     systemTable = st;
     cout = systemTable->ConOut;
 
@@ -70,13 +73,16 @@ extern "C" EFI_STATUS efi_main(const EFI_HANDLE handle, EFI_SYSTEM_TABLE *st) {
 
 
     bool isSuccessful;
-    getMemoryMap(&isSuccessful);
+    const MemoryMap_t memMap = getMemoryMap(&isSuccessful);
     if (isSuccessful) {
         Log::print(L"Memory map retrieved.\r\n");
     }
     else {
         Log::print(L"Memory map failed.\r\n");
     }
+
+    MemoryMapper::mapMemory(systemTable->BootServices, &memMap);
+    Log::print(L"We are OK!\r\n");
 
     UINTN x;
     status = systemTable->BootServices->WaitForEvent(1, &systemTable->ConIn->WaitForKey, &x);
@@ -117,7 +123,7 @@ static MemoryMap_t getMemoryMap(bool *isSuccessful) {
         &descriptorVersion);
 
     if (!EFI_ERROR(status)) {
-        MemoryMap_t mem_map;
+        MemoryMap_t mem_map{};
         mem_map.mem_map_size = mapSize;
         mem_map.mem_map_key = mapKey;
         mem_map.entries = reinterpret_cast<MemoryMapEntry_t *>(memMapPtr);
@@ -162,7 +168,7 @@ static MemoryMap_t getMemoryMap(bool *isSuccessful) {
         return INVALID_MEMORY_MAP;
     }
 
-    MemoryMap_t memMap;
+    MemoryMap_t memMap{};
     memMap.mem_map_size = mapSize;
     memMap.mem_map_key = mapKey;
     memMap.entries = reinterpret_cast<MemoryMapEntry_t *>(memMapPtr);

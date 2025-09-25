@@ -8,6 +8,7 @@ static constexpr int PAGE_SIZE = 4096;
 /**
  * Describes a continuous region of memory in the MemoryMap. Fully compatible with EFI_MEMORY_DESCRIPTOR.
  */
+
 struct MemoryMapEntry_t {
     /**
      * The type of memory that's used here.
