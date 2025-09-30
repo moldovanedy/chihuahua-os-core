@@ -9,6 +9,7 @@ namespace Paginator {
     };
 
     enum class PageFlags {
+        None = 0,
         /**
          * If set, it means the page is present in RAM (opposed to swapped to disk).
          */

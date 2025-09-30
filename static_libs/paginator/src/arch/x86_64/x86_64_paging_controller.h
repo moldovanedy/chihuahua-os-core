@@ -7,6 +7,7 @@
 
 namespace Paginator::X86_64 {
     enum class X86_64PageFlags : uint64_t {
+        None = 0,
         Present = 1,
         /**
          * If set, the page is read/write, otherwise it's read-only.

@@ -3,7 +3,6 @@
 #include "chihuahua_essentials/mem_essentials.h"
 #include "paginator/page_table.h"
 #include "src/main.h"
-#include "src/utils/string_utils.h"
 
 namespace MemoryMapper {
     static EFI_BOOT_SERVICES *cachedBs;
@@ -18,7 +17,8 @@ namespace MemoryMapper {
         }
 
         cachedBs = bs;
-        
+        memset(reinterpret_cast<void *>(pageTablesPtr), 0, EFI_PAGE_SIZE);
+
         const auto pageTableController = Paginator::PageTableRootController(
             reinterpret_cast<Paginator::PageTable_t *>(pageTablesPtr),
             [] {
@@ -26,7 +26,13 @@ namespace MemoryMapper {
                 const EFI_STATUS ptAllocStatus = cachedBs->AllocatePages(
                     AllocateAnyPages, EfiLoaderData, 1, &ptAddress);
 
-                if (EFI_ERROR(ptAllocStatus) || ptAddress == 0) {
+                // CHAR16 string[15] = {};
+                // memset(string, 0, sizeof(string));
+                // Utils::int64ToWideCharN(ptAddress, string, sizeof(string) / 2);
+                // Log::print(string);
+                // Log::print(L"\r\n");
+
+                if (EFI_ERROR(ptAllocStatus) || ptAddress == 0 || ptAddress % EFI_PAGE_SIZE != 0) {
                     Log::print(L"FATAL: Could not allocate memory for paging.\r\n");
                     panic();
                 }
@@ -34,8 +40,6 @@ namespace MemoryMapper {
                 return ptAddress;
             },
             true);
-
-        // CHAR16 string[15] = {};
 
         const size_t mapSize = memoryMap->mem_map_size / memoryMap->entry_size;
         for (size_t i = 0; i < mapSize; i++) {
@@ -49,23 +53,14 @@ namespace MemoryMapper {
                 continue;
             }
 
-            // memset(string, 0, sizeof(string));
-            // Utils::int64ToWideCharN(static_cast<int64_t>(entry->physical_start), string, sizeof(string) / 2);
-            // Log::print(string);
-            // Log::print(L"\r\n");
-            //
-            // memset(string, 0, sizeof(string));
-            // Utils::int64ToWideCharN(static_cast<int64_t>(entry->virtual_start), string, sizeof(string) / 2);
-            // Log::print(string);
-            // Log::print(L"\r\n\r\n");
-
             for (size_t j = 0; j < entry->page_count; j++) {
                 const Paginator::PageMapError err = pageTableController.identityMapPage(
                     entry->physical_start + (EFI_PAGE_SIZE * j),
                     Paginator::PageFlags::Present
                     | Paginator::PageFlags::ReadBit
                     | Paginator::PageFlags::WriteBit
-                    | Paginator::PageFlags::ExecuteBit);
+                    | Paginator::PageFlags::ExecuteBit
+                    | Paginator::PageFlags::UserModeAccessible);
 
                 if (err != Paginator::PageMapError::NoError) {
                     Log::print(L"FATAL: Could not set up paging (mapping error).\r\n");
@@ -74,14 +69,12 @@ namespace MemoryMapper {
             }
         }
 
-        Log::print(L"BP1");
         const bool success = pageTableController.activateRootPageTable();
         if (!success) {
             Log::print(L"FATAL: Could not activate paging.\r\n");
             panic();
         }
-        
-        Log::print(L"BP5");
+
         cachedBs = nullptr;
     }
 }
